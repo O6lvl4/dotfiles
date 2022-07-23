@@ -14,7 +14,7 @@ execute "fvm flutter install default version" do
   not_if "fvm list | grep #{default_version}"
 end
 
-execute "setup flutter" do
+execute "setup flutter for global setting" do
   command "fvm global #{default_version}"
   not_if "fvm flutter --version"
 end
