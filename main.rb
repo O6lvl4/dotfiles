@@ -14,10 +14,11 @@ def selectRecipes(kind)
 end
 
 def main
-  prompt = TTY::Prompt.new
   kind = selectKindRecipe()
   recipes = selectRecipes(kind)
-  p recipes
+  for recipe in recipes
+    system("bin/mitamae local -l debug cookbooks/#{kind}/#{recipe}/default.rb", out: STDOUT)
+  end
 end
 
 main()
