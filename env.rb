@@ -15,7 +15,12 @@ end
 
 def env()
   envSet = getEnvSet
-  envSet.map { |path| p readFileContent(path) }
+  allEnv = envSet
+    .map { |path| readFileContent(path) + [""] }
+    .flatten
+  File.open(".zshrc", "w") do |envFile|
+    allEnv.each { |line| envFile.puts(line) }
+  end
 end
 
 env()
