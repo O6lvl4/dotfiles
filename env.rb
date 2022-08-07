@@ -18,9 +18,11 @@ def env()
   allEnv = envSet
     .map { |path| readFileContent(path) + [""] }
     .flatten
-  File.open(".zshrc", "w") do |envFile|
+  File.open("build/.zshrc", "w") do |envFile|
     allEnv.each { |line| envFile.puts(line) }
   end
+  mitamae = 'bin/mitamae'
+  system("#{mitamae} local -l debug cookbooks/zsh/link.rb", out: STDOUT)
 end
 
 env()
