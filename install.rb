@@ -2,7 +2,7 @@ require "tty-prompt"
 
 def selectKindRecipe()
   prompt = TTY::Prompt.new
-  kinds = Dir.glob("./cookbooks/*").map { |dir| dir.split("/").last }
+  kinds = ["seeds", "tools", "apps"]
   return prompt.select("Which select kind receip?", kinds)
 end
 
