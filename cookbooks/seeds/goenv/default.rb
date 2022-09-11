@@ -2,7 +2,7 @@ git File.expand_path("~/.goenv") do
   repository "https://github.com/syndbg/goenv.git"
 end
 
-go_version = "1.10.0"
+go_version = "1.18.5"
 
 execute "goenv install #{go_version}" do
   not_if "goenv versions | grep #{go_version}"
