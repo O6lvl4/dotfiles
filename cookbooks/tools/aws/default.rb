@@ -18,6 +18,11 @@ execute "install awscli@v2" do
 end
 
 execute "install cdk" do
-  command "npm install -g aws-cdk"
+  command "volta install aws-cdk"
   not_if "which cdk"
+end
+
+execute "install amplify" do
+  command "volta install @aws-amplify/cli"
+  not_if "which amplify"
 end
