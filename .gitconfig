@@ -1,0 +1,103 @@
+[user]
+    # Set your name and email
+    # name = Your Name
+    # email = your.email@example.com
+
+[core]
+    editor = nvim
+    whitespace = fix,-indent-with-non-tab,trailing-space,cr-at-eol
+    excludesfile = ~/.gitignore_global
+    pager = less -FRX
+
+[color]
+    ui = auto
+    diff = auto
+    status = auto
+    branch = auto
+    interactive = auto
+
+[alias]
+    # Shortcuts
+    co = checkout
+    br = branch
+    ci = commit
+    st = status
+    unstage = reset HEAD --
+    
+    # Logging
+    lg = log --color --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit
+    last = log -1 HEAD
+    
+    # Branching
+    branches = branch -a
+    remotes = remote -v
+    
+    # Diff
+    d = diff
+    dc = diff --cached
+    dt = difftool
+    
+    # Stash
+    sl = stash list
+    sa = stash apply
+    ss = stash save
+    
+    # Working with remotes
+    fo = fetch origin
+    fu = fetch upstream
+    po = push origin
+    pu = push upstream
+    
+    # Undo
+    undo = reset --soft HEAD~1
+    amend = commit --amend --reuse-message=HEAD
+    
+    # Clean
+    clean-branches = "!git branch --merged | grep -v '\\*\\|main\\|master\\|develop' | xargs -n 1 git branch -d"
+
+[push]
+    default = current
+    autoSetupRemote = true
+
+[pull]
+    rebase = true
+
+[fetch]
+    prune = true
+
+[diff]
+    tool = vimdiff
+    algorithm = histogram
+
+[difftool]
+    prompt = false
+
+[merge]
+    tool = vimdiff
+    conflictstyle = zdiff3
+
+[mergetool]
+    prompt = false
+    keepBackup = false
+
+[commit]
+    gpgsign = false
+    verbose = true
+
+[init]
+    defaultBranch = main
+
+[filter "lfs"]
+    required = true
+    clean = git-lfs clean -- %f
+    smudge = git-lfs smudge -- %f
+    process = git-lfs filter-process
+
+[credential]
+    helper = osxkeychain
+
+[github]
+    user = # your-github-username
+
+[includeIf "gitdir:~/work/"]
+    path = ~/.gitconfig-work

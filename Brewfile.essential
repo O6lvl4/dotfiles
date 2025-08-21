@@ -1,0 +1,20 @@
+# Essential packages only
+
+# Core tools
+brew "git"
+brew "gh"
+brew "wget"
+brew "curl"
+brew "jq"
+
+# Development
+brew "node"
+brew "python@3.11"
+
+# Applications
+cask "google-chrome"
+cask "visual-studio-code"
+cask "iterm2"
+cask "docker"
+cask "slack"
+cask "rectangle"

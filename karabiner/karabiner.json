@@ -1,0 +1,454 @@
+{
+    "global": { 
+        "check_for_updates_on_startup": true,
+        "show_in_menu_bar": true,
+        "show_profile_name_in_menu_bar": false
+    },
+    "profiles": [
+        {
+            "name": "JIS Physical to JIS Logical",
+            "selected": true,
+            "simple_modifications": [],
+            "complex_modifications": {
+                "parameters": {
+                    "basic.simultaneous_threshold_milliseconds": 50,
+                    "basic.to_delayed_action_delay_milliseconds": 500,
+                    "basic.to_if_alone_timeout_milliseconds": 1000,
+                    "basic.to_if_held_down_threshold_milliseconds": 500
+                },
+                "rules": [
+                    {
+                        "description": "JIS物理キーボードをJIS論理配列に完全修正",
+                        "manipulators": [
+                            {
+                                "type": "basic",
+                                "description": "Shift+1 → !",
+                                "from": {
+                                    "key_code": "1",
+                                    "modifiers": {
+                                        "mandatory": ["shift"]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "1",
+                                        "modifiers": ["shift"]
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "basic",
+                                "description": "Shift+2 → \"",
+                                "from": {
+                                    "key_code": "2",
+                                    "modifiers": {
+                                        "mandatory": ["shift"]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "quote",
+                                        "modifiers": ["shift"]
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "basic",
+                                "description": "Shift+3 → #",
+                                "from": {
+                                    "key_code": "3",
+                                    "modifiers": {
+                                        "mandatory": ["shift"]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "3",
+                                        "modifiers": ["shift"]
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "basic",
+                                "description": "Shift+4 → $",
+                                "from": {
+                                    "key_code": "4",
+                                    "modifiers": {
+                                        "mandatory": ["shift"]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "4",
+                                        "modifiers": ["shift"]
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "basic",
+                                "description": "Shift+5 → %",
+                                "from": {
+                                    "key_code": "5",
+                                    "modifiers": {
+                                        "mandatory": ["shift"]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "5",
+                                        "modifiers": ["shift"]
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "basic",
+                                "description": "Shift+6 → &",
+                                "from": {
+                                    "key_code": "6",
+                                    "modifiers": {
+                                        "mandatory": ["shift"]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "7",
+                                        "modifiers": ["shift"]
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "basic",
+                                "description": "Shift+7 → '",
+                                "from": {
+                                    "key_code": "7",
+                                    "modifiers": {
+                                        "mandatory": ["shift"]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "quote"
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "basic",
+                                "description": "Shift+8 → (",
+                                "from": {
+                                    "key_code": "8",
+                                    "modifiers": {
+                                        "mandatory": ["shift"]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "9",
+                                        "modifiers": ["shift"]
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "basic",
+                                "description": "Shift+9 → )",
+                                "from": {
+                                    "key_code": "9",
+                                    "modifiers": {
+                                        "mandatory": ["shift"]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "0",
+                                        "modifiers": ["shift"]
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "basic",
+                                "description": "Shift+0 → なし",
+                                "from": {
+                                    "key_code": "0",
+                                    "modifiers": {
+                                        "mandatory": ["shift"]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "0",
+                                        "modifiers": ["shift"]
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "basic",
+                                "description": "Shift+- → =",
+                                "from": {
+                                    "key_code": "hyphen",
+                                    "modifiers": {
+                                        "mandatory": ["shift"]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "equal_sign"
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "basic",
+                                "description": "^ → ^",
+                                "from": {
+                                    "key_code": "equal_sign"
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "6",
+                                        "modifiers": ["shift"]
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "basic",
+                                "description": "Shift+^ → ~",
+                                "from": {
+                                    "key_code": "equal_sign",
+                                    "modifiers": {
+                                        "mandatory": ["shift"]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "grave_accent_and_tilde",
+                                        "modifiers": ["shift"]
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "basic",
+                                "description": "@ → @",
+                                "from": {
+                                    "key_code": "open_bracket"
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "2",
+                                        "modifiers": ["shift"]
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "basic",
+                                "description": "Shift+@ → `",
+                                "from": {
+                                    "key_code": "open_bracket",
+                                    "modifiers": {
+                                        "mandatory": ["shift"]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "grave_accent_and_tilde"
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "basic",
+                                "description": "[ → [",
+                                "from": {
+                                    "key_code": "close_bracket"
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "open_bracket"
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "basic",
+                                "description": "Shift+[ → {",
+                                "from": {
+                                    "key_code": "close_bracket",
+                                    "modifiers": {
+                                        "mandatory": ["shift"]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "open_bracket",
+                                        "modifiers": ["shift"]
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "basic",
+                                "description": ": → :",
+                                "from": {
+                                    "key_code": "quote"
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "semicolon",
+                                        "modifiers": ["shift"]
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "basic",
+                                "description": "Shift+: → *",
+                                "from": {
+                                    "key_code": "quote",
+                                    "modifiers": {
+                                        "mandatory": ["shift"]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "8",
+                                        "modifiers": ["shift"]
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "basic",
+                                "description": "; → ;",
+                                "from": {
+                                    "key_code": "semicolon"
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "semicolon"
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "basic",
+                                "description": "Shift+; → +",
+                                "from": {
+                                    "key_code": "semicolon",
+                                    "modifiers": {
+                                        "mandatory": ["shift"]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "equal_sign",
+                                        "modifiers": ["shift"]
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "basic",
+                                "description": "] → ]",
+                                "from": {
+                                    "key_code": "backslash"
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "close_bracket"
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "basic",
+                                "description": "Shift+] → }",
+                                "from": {
+                                    "key_code": "backslash",
+                                    "modifiers": {
+                                        "mandatory": ["shift"]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "close_bracket",
+                                        "modifiers": ["shift"]
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "basic",
+                                "description": "\\ → \\",
+                                "from": {
+                                    "key_code": "international3"
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "backslash"
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "basic",
+                                "description": "Option+¥ → \\",
+                                "from": {
+                                    "key_code": "international3",
+                                    "modifiers": {
+                                        "mandatory": ["option"]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "backslash"
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "basic",
+                                "description": "Shift+\\ → |",
+                                "from": {
+                                    "key_code": "international3",
+                                    "modifiers": {
+                                        "mandatory": ["shift"]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "backslash",
+                                        "modifiers": ["shift"]
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "basic",
+                                "description": "_ → _",
+                                "from": {
+                                    "key_code": "international1"
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "hyphen",
+                                        "modifiers": ["shift"]
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "basic",
+                                "description": "Shift+_ → _",
+                                "from": {
+                                    "key_code": "international1",
+                                    "modifiers": {
+                                        "mandatory": ["shift"]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "hyphen",
+                                        "modifiers": ["shift"]
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            },
+            "devices": [],
+            "fn_function_keys": [],
+            "parameters": {
+                "delay_milliseconds_before_open_device": 1000
+            },
+            "virtual_hid_keyboard": {
+                "country_code": 0,
+                "keyboard_type_v2": "ansi"
+            }
+        }
+    ]
+}

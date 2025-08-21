@@ -1,0 +1,13 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Backups
+*.backup
+Brewfile.lock.json
+
+# Temporary files
+*.tmp
+*.swp
+*~
