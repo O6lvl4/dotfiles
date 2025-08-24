@@ -3,6 +3,21 @@
 .AppleDouble
 .LSOverride
 
+# Environment variables and secrets
+.envrc
+.env
+.env.*
+!.envrc.template
+*.pem
+*.key
+*.crt
+*.p12
+
+# Personal configuration
+.gitconfig-work
+personal/
+private/
+
 # Backups
 *.backup
 Brewfile.lock.json
@@ -11,3 +26,45 @@ Brewfile.lock.json
 *.tmp
 *.swp
 *~
+*.log
+*.pid
+
+# IDE
+.idea/
+.vscode/
+*.sublime-*
+
+# Language specific
+__pycache__/
+*.pyc
+.python-version
+node_modules/
+.npm
+.yarn
+.pnp.*
+.ruby-version
+.java-version
+
+# Tool specific
+.mise.local.toml
+.volta/
+.sdkman/
+.rye/
+
+# SSH and GPG
+id_rsa*
+id_ed25519*
+*.gpg
+!*.gpg.pub
+
+# History files
+.zsh_history
+.bash_history
+.lesshst
+.viminfo
+
+# Cache and runtime
+.cache/
+.local/state/
+.local/share/
+tmp/

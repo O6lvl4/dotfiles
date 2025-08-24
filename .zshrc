@@ -81,6 +81,23 @@ alias ....='cd ../../..'
 alias ~='cd ~'
 alias -- -='cd -'
 
+# ================================
+# Color Settings
+# ================================
+# macOS ls colors (BSD format)
+# Format: directory_color, symlink_color, socket_color, pipe_color, executable_color, 
+# block_device_color, char_device_color, exe_with_setuid_color, exe_with_setgid_color,
+# dir_writable_sticky_color, dir_writable_no_sticky_color
+# a=black, b=red, c=green, d=brown, e=blue, f=magenta, g=cyan, h=light grey
+# x=default, A-H=bold versions
+export LSCOLORS="ExGxFxdxCxDxDxhbhdacad"  # Blue dirs instead of purple
+export CLICOLOR=1  # Enable colors for ls
+
+# eza/ls colors (Linux LS_COLORS format - used by eza)
+# Using cyan (36) for directories to avoid purple-looking blue
+export LS_COLORS="di=1;36:ex=1;32:ln=1;35:*.tar=1;31:*.zip=1;31:*.gz=1;31"  # di=cyan, ex=green, ln=magenta
+export EZA_COLORS="di=1;36:ex=1;32:ln=1;35"  # Backup for eza-specific settings
+
 # List directory contents
 if command -v eza &> /dev/null; then
     # アイコン付き版をデフォルトに
@@ -319,3 +336,10 @@ bindkey '^[[B' history-search-forward
 # ================================
 # Source local configuration if it exists
 [ -f ~/.zshrc.local ] && source ~/.zshrc.local
+# Google Cloud SDK
+if [[ -f "/usr/local/share/google-cloud-sdk/path.zsh.inc" ]]; then
+    source "/usr/local/share/google-cloud-sdk/path.zsh.inc"
+fi
+if [[ -f "/usr/local/share/google-cloud-sdk/completion.zsh.inc" ]]; then
+    source "/usr/local/share/google-cloud-sdk/completion.zsh.inc"
+fi

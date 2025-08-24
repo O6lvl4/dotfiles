@@ -1,0 +1,30 @@
+# mise configuration example
+# Copy this file to .tool-versions in your project root
+# or to ~/.tool-versions for global defaults
+
+# Go
+golang 1.23.5
+
+# Python
+python 3.12.11
+
+# Ruby
+ruby 3.3.6
+
+# Node.js (managed by Volta, but mise can also handle it)
+# nodejs 22.18.0
+
+# Rust
+rust 1.83.0
+
+# Java (via mise-java plugin)
+# java openjdk-21
+
+# Terraform
+# terraform 1.9.8
+
+# kubectl
+# kubectl 1.31.4
+
+# AWS CLI
+# awscli 2.22.25

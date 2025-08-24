@@ -322,6 +322,22 @@
                             },
                             {
                                 "type": "basic",
+                                "description": "Shift+Command+; → Command++",
+                                "from": {
+                                    "key_code": "semicolon",
+                                    "modifiers": {
+                                        "mandatory": ["shift", "command"]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "equal_sign",
+                                        "modifiers": ["shift", "command"]
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "basic",
                                 "description": "Shift+; → +",
                                 "from": {
                                     "key_code": "semicolon",
