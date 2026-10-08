@@ -1,0 +1,10 @@
+# Toolchains installed by qusp and pinned globally (bare `node`, `go`, … in ~/.local/bin).
+# Per-project versions belong in that project's qusp.toml, not here.
+#
+# lang      version   (latest = newest stable · 24 = newest 24.x · anything else verbatim)
+rust        stable
+go          latest
+node        24
+python      3.14
+ruby        latest
+almide      latest

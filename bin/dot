@@ -1,0 +1,252 @@
+#!/bin/zsh
+# dot — the only command this repo has.
+#
+#   dot up        link + tools + langs   (safe to re-run any time)
+#   dot link      symlink home/ into $HOME
+#   dot tools     install / update the binaries listed in ./tools
+#   dot langs     install + globally pin the toolchains in ./langs via qusp
+#   dot repos     clone every repo of the owners in ./repos into ~/workspace
+#   dot doctor    show what is and isn't in place
+#   dot edit      cd into this repo
+emulate -L zsh
+setopt err_return pipe_fail no_unset extended_glob
+
+DOT=${0:A:h:h}
+BIN=$HOME/.local/bin
+STATE=${XDG_STATE_HOME:-$HOME/.local/state}/dot
+WORKSPACE=${WORKSPACE:-$HOME/workspace}
+
+# ── output ──────────────────────────────────────────────────────────────
+if [[ -t 1 ]]; then
+  c_dim=$'\e[2m' c_ok=$'\e[32m' c_warn=$'\e[33m' c_err=$'\e[31m' c_acc=$'\e[38;5;179m' c_off=$'\e[0m'
+else
+  c_dim= c_ok= c_warn= c_err= c_acc= c_off=
+fi
+step() { print -r -- "${c_acc}◆${c_off} $*" }
+ok()   { print -r -- "  ${c_ok}✓${c_off} $*" }
+skip() { print -r -- "  ${c_dim}· $*${c_off}" }
+warn() { print -r -- "  ${c_warn}!${c_off} $*" }
+die()  { print -r -- "  ${c_err}✗${c_off} $*" >&2; return 1 }
+
+# Lines of a config file, without comments or blank lines.
+entries() { local l; for l in "${(@f)$(<$DOT/$1)}"; do l=${l%%\#*}; [[ -n ${l//[[:space:]]/} ]] && print -r -- $l; done }
+
+# ── machine ─────────────────────────────────────────────────────────────
+arch_rust() { [[ $(uname -m) == arm64 ]] && print aarch64 || print x86_64 }
+arch_go()   { [[ $(uname -m) == arm64 ]] && print arm64   || print amd64 }
+
+# Xcode.app selected but its license not accepted (and no sudo to accept it):
+# every /usr/bin dev tool dies with exit 69. The Command Line Tools copy works.
+needs_clt() {
+  [[ -d /Library/Developer/CommandLineTools ]] || return 1
+  env -u DEVELOPER_DIR /usr/bin/git --version >/dev/null 2>&1 && return 1
+  return 0
+}
+
+# ── link ────────────────────────────────────────────────────────────────
+cmd_link() {
+  step "link  ${c_dim}$DOT/home → ~${c_off}"
+  local src rel dst
+  for src in $DOT/home/**/*(.D); do
+    rel=${src#$DOT/home/}
+    dst=$HOME/$rel
+    if [[ -L $dst && ${dst:A} == ${src:A} ]]; then skip $rel; continue; fi
+    mkdir -p ${dst:h}
+    if [[ -e $dst || -L $dst ]]; then
+      mv $dst $dst.pre-dot
+      warn "$rel  ${c_dim}(old one kept as $rel.pre-dot)${c_off}"
+    fi
+    ln -s $src $dst
+    ok $rel
+  done
+
+  # Machine-local overrides live outside the repo.
+  local zlocal=$HOME/.config/zsh/local.zsh glocal=$HOME/.config/git/local
+  [[ -e $zlocal ]] || print -r -- "# This machine only. Not tracked." > $zlocal
+  [[ -e $glocal ]] || print -r -- "# This machine only. Not tracked." > $glocal
+  if needs_clt && ! grep -q DEVELOPER_DIR $zlocal; then
+    print -r -- "export DEVELOPER_DIR=/Library/Developer/CommandLineTools  # Xcode license not accepted" >> $zlocal
+    ok "local.zsh  ${c_dim}DEVELOPER_DIR → CommandLineTools${c_off}"
+  fi
+
+  # Superseded by ~/.config/zsh and ~/.config/git. Moved aside, never deleted.
+  local old
+  for old in .zshrc .zprofile .gitconfig; do
+    [[ -f $HOME/$old && ! -L $HOME/$old ]] || continue
+    mv $HOME/$old $HOME/$old.pre-dot
+    warn "$old  ${c_dim}(superseded, kept as $old.pre-dot)${c_off}"
+  done
+
+  mkdir -p $BIN
+  [[ $BIN/dot:A == $DOT/bin/dot ]] || { ln -sf $DOT/bin/dot $BIN/dot; ok "~/.local/bin/dot" }
+}
+
+# ── tools: binaries straight from GitHub releases ───────────────────────
+gh_api() {
+  if [[ -x $BIN/gh ]] && $BIN/gh auth status >/dev/null 2>&1; then
+    $BIN/gh api $1
+  else
+    curl -fsSL -H 'Accept: application/vnd.github+json' https://api.github.com/$1
+  fi
+}
+
+# install_tool <name> <owner/repo> <asset regex> [alias,...]
+install_tool() {
+  local name=$1 repo=$2 pattern=$3 aliases=${4:-} json tag asset url sums tmp bin
+  pattern=${pattern//\{rust\}/$(arch_rust)}
+  pattern=${pattern//\{go\}/$(arch_go)}
+
+  json=$(gh_api repos/$repo/releases/latest) || { die "$name  could not reach $repo"; return 1 }
+  tag=$(jq -r .tag_name <<<$json)
+  # argv[0] aliases (qusp → quspx) are just symlinks to the same binary.
+  local alias
+  for alias in ${(s:,:)aliases}; do ln -sf $name $BIN/$alias; done
+
+  if [[ -x $BIN/$name && -f $STATE/tools/$name && $(<$STATE/tools/$name) == $tag ]]; then
+    skip "$name $tag"; return 0
+  fi
+
+  asset=$(jq -r --arg p "^$pattern\$" '[.assets[].name | select(test($p))][0] // empty' <<<$json)
+  [[ -n $asset ]] || { die "$name  no asset matching $pattern in $repo $tag"; return 1 }
+  url=$(jq -r --arg a $asset '.assets[] | select(.name == $a) | .browser_download_url' <<<$json)
+
+  tmp=$(mktemp -d)
+  {
+    curl -fsSL -o $tmp/$asset $url
+
+    # Verify against whatever checksum file the release publishes.
+    sums=$(jq -r --arg a $asset '[.assets[] | select(.name == ($a + ".sha256") or (.name | test("(?i)checksums|sha256sums"))) | .browser_download_url][0] // empty' <<<$json)
+    if [[ -n $sums ]]; then
+      local want got
+      want=$(curl -fsSL $sums | awk -v a=$asset 'NF == 1 || $2 == a || $2 == "*"a { print $1; exit }')
+      got=$(shasum -a 256 $tmp/$asset | awk '{ print $1 }')
+      [[ $want == $got ]] || { die "$name  sha256 mismatch for $asset"; return 1 }
+    else
+      warn "$name  ${c_dim}no checksum published, unverified${c_off}"
+    fi
+
+    mkdir -p $tmp/x $BIN
+    case $asset in
+      *.zip)    ditto -x -k $tmp/$asset $tmp/x ;;
+      *.tar.gz|*.tgz) tar -xzf $tmp/$asset -C $tmp/x ;;
+      *)        cp $tmp/$asset $tmp/x/$name ;;
+    esac
+    bin=( $tmp/x/**/$name(.N) )
+    [[ -n $bin ]] || { die "$name  no '$name' binary inside $asset"; return 1 }
+    install -m 755 $bin[1] $BIN/$name
+
+    mkdir -p $STATE/tools
+    print -r -- $tag > $STATE/tools/$name
+    ok "$name $tag"
+  } always {
+    rm -rf $tmp
+  }
+}
+
+cmd_tools() {
+  step "tools  ${c_dim}→ ~/.local/bin${c_off}"
+  local line failed=0
+  for line in "${(@f)$(entries tools)}"; do
+    install_tool ${=line} || failed=1
+  done
+  return $failed
+}
+
+# ── langs: toolchains via qusp ──────────────────────────────────────────
+# `latest` → newest stable release, `24` → newest 24.x, anything else as-is.
+resolve_version() {
+  local lang=$1 want=$2 v
+  [[ $want == latest || $want == [0-9]## || $want == [0-9]##.[0-9]## ]] || { print -r -- $want; return }
+  for v in ${(f)"$($BIN/qusp list --remote $lang 2>/dev/null)"}; do
+    v=${v//$'\e'\[[0-9;]#m/}; v=${v//[[:space:]]/}
+    [[ ${v#go} == [0-9]##(.[0-9]##)# ]] || continue            # skip rc / beta / channels
+    [[ $want == latest || ${v#go} == $want || ${v#go} == $want.* ]] || continue
+    print -r -- $v; return
+  done
+  return 1
+}
+
+cmd_langs() {
+  step "langs  ${c_dim}via qusp${c_off}"
+  [[ -x $BIN/qusp ]] || { die "qusp missing — run: dot tools"; return 1 }
+  local line lang want version pinned
+  pinned=$($BIN/qusp pin list 2>/dev/null)
+  for line in "${(@f)$(entries langs)}"; do
+    lang=${${=line}[1]} want=${${=line}[2]}
+    version=$(resolve_version $lang $want) || { warn "$lang $want  ${c_dim}no matching release${c_off}"; continue }
+    if [[ $pinned == *"$lang"*"$version"* ]]; then skip "$lang $version"; continue; fi
+    # install → pin → install again: `pin set` only links toolchains under
+    # qusp's own data dir, so go (stored by gv) needs the second install to
+    # land in the farm. Already-installed makes the second one cheap.
+    if $BIN/qusp install $lang $version >/dev/null 2>&1 &&
+       $BIN/qusp pin set $lang $version >/dev/null 2>&1 &&
+       $BIN/qusp install $lang $version >/dev/null 2>&1; then
+      ok "$lang $version"
+    else
+      warn "$lang $version  ${c_dim}failed — try: qusp install $lang $version${c_off}"
+    fi
+  done
+}
+
+# ── repos: mirror whole accounts into ~/workspace/github.com/<owner>/<repo>
+cmd_repos() {
+  step "repos  ${c_dim}→ $WORKSPACE/github.com${c_off}"
+  [[ -x $BIN/gh ]] && $BIN/gh auth status >/dev/null 2>&1 \
+    || { die "gh is not logged in — run: gh auth login"; return 1 }
+  local owner list=()
+  for owner in "${(@f)$(entries repos)}"; do
+    list+=( ${(f)"$($BIN/gh repo list $owner -L 5000 --json nameWithOwner -q '.[].nameWithOwner')"} )
+  done
+  local -a todo=()
+  local r
+  for r in $list; do [[ -d $WORKSPACE/github.com/$r/.git ]] || todo+=$r; done
+  skip "$(( $#list - $#todo )) already cloned"
+  (( $#todo )) || return 0
+
+  # 8 at a time; each clone reports for itself.
+  print -rl -- $todo | xargs -P 8 -n 1 $DOT/bin/dot _clone
+}
+
+cmd__clone() {
+  local r=$1 dst=$WORKSPACE/github.com/$1 err
+  mkdir -p ${dst:h}
+  if err=$(git clone -q https://github.com/$r.git $dst 2>&1); then ok $r; else die "$r  ${err##*$'\n'}"; fi
+}
+
+# ── doctor ──────────────────────────────────────────────────────────────
+cmd_doctor() {
+  step doctor
+  local src rel bad=0
+  for src in $DOT/home/**/*(.D); do
+    rel=${src#$DOT/home/}
+    [[ -L $HOME/$rel && ${${:-$HOME/$rel}:A} == $src:A ]] && continue
+    warn "$rel not linked"; bad=1
+  done
+  (( bad )) || ok "home/ fully linked"
+
+  [[ :$PATH: == *:$BIN:* ]] && ok "~/.local/bin on PATH" || warn "~/.local/bin not on PATH"
+  needs_clt && [[ ${DEVELOPER_DIR:-} != *CommandLineTools* ]] && warn "Xcode license not accepted and DEVELOPER_DIR unset"
+  git --version >/dev/null 2>&1 && ok "$(git --version)" || warn "git does not run"
+
+  local line name
+  for line in "${(@f)$(entries tools)}"; do
+    name=${${=line}[1]}
+    [[ -x $BIN/$name ]] && ok "$name ${$(cat $STATE/tools/$name 2>/dev/null):-}" || warn "$name missing"
+  done
+  if [[ -x $BIN/gh ]]; then
+    local who=$($BIN/gh api user -q .login 2>/dev/null)
+    [[ -n $who ]] && ok "gh logged in as $who" || warn "gh not logged in"
+  fi
+  [[ -x $BIN/qusp ]] && $BIN/qusp pin list 2>/dev/null | sed 's/^/    /'
+  return 0
+}
+
+cmd_up() { cmd_link; cmd_tools; cmd_langs }
+
+cmd_help() { sed -n '2,10s/^# \{0,1\}//p' $DOT/bin/dot }
+
+case ${1:-help} in
+  up|link|tools|langs|repos|doctor|help|_clone) cmd=${1:-help}; (( $# )) && shift; cmd_$cmd "$@" ;;
+  edit) print -r -- $DOT ;;
+  *) die "unknown command: $1"; cmd_help; exit 1 ;;
+esac

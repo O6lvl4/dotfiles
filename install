@@ -1,0 +1,29 @@
+#!/bin/sh
+# One line on a fresh Mac. No sudo, no Homebrew.
+#
+#   curl -fsSL https://raw.githubusercontent.com/O6lvl4/dotfiles/main/install | sh
+set -eu
+
+dest=${DOT_DIR:-$HOME/workspace/github.com/O6lvl4/dotfiles}
+
+# Xcode.app installed but its license never accepted → every /usr/bin dev tool
+# exits 69. The Command Line Tools copy of git works without the license.
+if ! /usr/bin/git --version >/dev/null 2>&1 && [ -d /Library/Developer/CommandLineTools ]; then
+  export DEVELOPER_DIR=/Library/Developer/CommandLineTools
+fi
+if ! git --version >/dev/null 2>&1; then
+  echo "git is not usable. Run: xcode-select --install   (then re-run this)" >&2
+  exit 1
+fi
+
+[ -d "$dest/.git" ] || git clone --quiet https://github.com/O6lvl4/dotfiles.git "$dest"
+"$dest/bin/dot" up
+
+cat <<'NEXT'
+
+  Done. Open a new terminal, then:
+
+    gh auth login        # once per machine
+    dot repos            # every repo → ~/workspace/github.com/<owner>/<repo>
+
+NEXT

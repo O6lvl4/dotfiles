@@ -1,0 +1,7 @@
+# Binaries pulled straight from GitHub releases into ~/.local/bin.
+# No Homebrew, no sudo. Checksums verified when the release publishes them.
+#
+# name      repo              asset (regex; {rust} = aarch64|x86_64, {go} = arm64|amd64)   aliases
+gh          cli/cli           gh_[0-9.]+_macOS_{go}\.zip
+qusp        O6lvl4/qusp       qusp-v[0-9.]+-{rust}-apple-darwin\.tar\.gz        quspx
+codopsy     O6lvl4/codopsy    codopsy-{rust}-apple-darwin\.tar\.gz
