@@ -6,6 +6,7 @@
 #   dot tools     install / update the binaries listed in ./tools
 #   dot langs     install + globally pin the toolchains in ./langs via qusp
 #   dot repos     clone every repo of the owners in ./repos into ~/workspace
+#   dot sync      dot repos, then fetch + fast-forward every repo in ~/workspace
 #   dot doctor    show what is and isn't in place
 #   dot edit      cd into this repo
 emulate -L zsh
@@ -192,7 +193,7 @@ install_tool() {
 cmd_tools() {
   step "tools  ${c_dim}→ ~/.local/bin${c_off}"
   local line failed=0
-  for line in "${(@f)$(entries tools)}"; do
+  for line in ${(f)"$(entries tools)"}; do
     install_tool ${=line} || failed=1
   done
   return $failed
@@ -219,7 +220,7 @@ cmd_langs() {
   [[ -x $BIN/qusp ]] || { die "qusp missing — run: dot tools"; return 1 }
   local line lang want version pinned
   pinned=$($BIN/qusp pin list 2>/dev/null)
-  for line in "${(@f)$(entries langs)}"; do
+  for line in ${(f)"$(entries langs)"}; do
     lang=${${=line}[1]} want=${${=line}[2]}
     version=$(resolve_version $lang $want) || { warn "$lang $want  ${c_dim}no matching release${c_off}"; continue }
     if [[ $pinned == *"$lang"*"$version"* ]]; then skip "$lang $version"; continue; fi
@@ -238,7 +239,7 @@ cmd_repos() {
   [[ -x $BIN/gh ]] && $BIN/gh auth status >/dev/null 2>&1 \
     || { die "gh is not logged in — run: gh auth login"; return 1 }
   local owner list=()
-  for owner in "${(@f)$(entries repos)}"; do
+  for owner in ${(f)"$(entries repos)"}; do
     list+=( ${(f)"$($BIN/gh repo list $owner -L 5000 --json nameWithOwner -q '.[].nameWithOwner')"} )
   done
   local -a todo=()
@@ -257,6 +258,60 @@ cmd__clone() {
   if err=$(git clone -q https://github.com/$r.git $dst 2>&1); then ok $r; else die "$r  ${err##*$'\n'}"; fi
 }
 
+# ── sync: clone what's new, fast-forward what's behind ──────────────────
+# Only ever fast-forwards the checked-out branch. Anything that would need a
+# merge, a stash or a guess (diverged, conflicting local edits) is reported
+# and left alone.
+cmd_sync() {
+  cmd_repos || warn "skipping new clones"
+  step "sync  ${c_dim}fetch + fast-forward${c_off}"
+  local root=$WORKSPACE/github.com
+  local -a all=( $root/*/*/.git(ND/:h) )        # D: Aid-On/.github too
+  all=( ${all#$root/} )
+  (( $#all )) || { skip "nothing in $root"; return 0 }
+
+  local line kind r detail n=0 same=0 pulled=0 bad=0
+  local -a quiet=()
+  # 8 at a time; each worker prints one "kind<TAB>repo<TAB>detail" line.
+  print -rl -- $all | xargs -P 8 -n 1 $DOT/bin/dot _sync | while IFS=$'\t' read -r kind r detail; do
+    (( ++n ))
+    [[ -t 1 ]] && print -n -- "\r\e[K  ${c_dim}$n/$#all${c_off}"
+    [[ -t 1 && $kind != same ]] && print -n -- "\r\e[K"
+    case $kind in
+      same)     (( ++same )) ;;
+      pulled)   (( ++pulled )); ok "$r  ${c_dim}$detail${c_off}" ;;
+      noup)     quiet+=$r ;;
+      ahead)    skip "$r  $detail" ;;
+      *)        (( ++bad )); warn "$r  ${c_dim}$detail${c_off}" ;;
+    esac
+  done
+  [[ -t 1 ]] && print -n -- "\r\e[K"
+  (( $#quiet )) && skip "no upstream: ${(j:, :)quiet}"
+  skip "$same up to date"
+  (( pulled + bad )) && print -r -- "  ${c_dim}$pulled pulled, $bad need a look${c_off}"
+  return 0
+}
+
+cmd__sync() {
+  local r=$1 g=( git -C $WORKSPACE/github.com/$1 ) err branch ahead behind
+  if ! err=$($g fetch --prune --quiet 2>&1); then print -r -- "failed	$r	fetch: ${err##*$'\n'}"; return 0; fi
+  $g rev-parse -q --verify HEAD >/dev/null || { print -r -- "same	$r"; return 0 }    # empty repo
+  branch=$($g symbolic-ref --short -q HEAD) || { print -r -- "detached	$r	detached HEAD"; return 0 }
+  $g rev-parse -q --verify '@{u}' >/dev/null || { print -r -- "noup	$r	$branch"; return 0 }
+  print -r -- $($g rev-list --left-right --count 'HEAD...@{u}') | read -r ahead behind
+  if (( ! behind )); then
+    (( ahead )) && print -r -- "ahead	$r	$branch ↑$ahead unpushed" || print -r -- "same	$r"
+    return 0
+  fi
+  (( ahead )) && { print -r -- "diverged	$r	$branch ↑$ahead ↓$behind, needs a merge or rebase"; return 0 }
+  # --ff-only refuses on its own if local edits would be overwritten.
+  if err=$($g merge --ff-only --quiet '@{u}' 2>&1); then
+    print -r -- "pulled	$r	$branch +$behind"
+  else
+    print -r -- "dirty	$r	$branch ↓$behind, local changes in the way"
+  fi
+}
+
 # ── doctor ──────────────────────────────────────────────────────────────
 cmd_doctor() {
   step doctor
@@ -273,7 +328,7 @@ cmd_doctor() {
   git --version >/dev/null 2>&1 && ok "$(git --version)" || warn "git does not run"
 
   local line name
-  for line in "${(@f)$(entries tools)}"; do
+  for line in ${(f)"$(entries tools)"}; do
     name=${${=line}[1]}
     [[ -x $BIN/$name ]] && ok "$name ${$(cat $STATE/tools/$name 2>/dev/null):-}" || warn "$name missing"
   done
@@ -287,10 +342,10 @@ cmd_doctor() {
 
 cmd_up() { cmd_link; cmd_tools; cmd_langs }
 
-cmd_help() { sed -n '2,10s/^# \{0,1\}//p' $DOT/bin/dot }
+cmd_help() { sed -n '2,11s/^# \{0,1\}//p' $DOT/bin/dot }
 
 case ${1:-help} in
-  up|link|tools|langs|repos|doctor|help|_clone) cmd=${1:-help}; (( $# )) && shift; cmd_$cmd "$@" ;;
+  up|link|tools|langs|repos|sync|doctor|help|_clone|_sync) cmd=${1:-help}; (( $# )) && shift; cmd_$cmd "$@" ;;
   edit) print -r -- $DOT ;;
   *) die "unknown command: $1"; cmd_help; exit 1 ;;
 esac

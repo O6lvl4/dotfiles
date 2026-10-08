@@ -30,6 +30,7 @@ dot link      symlink home/ into $HOME
 dot tools     install / update the binaries in ./tools
 dot langs     install + globally pin the toolchains in ./langs
 dot repos     clone every repo of the owners in ./repos
+dot sync      dot repos, then fetch + fast-forward every repo
 dot doctor    what is and isn't in place
 dot edit      cd here
 ```
