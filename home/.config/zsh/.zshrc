@@ -54,7 +54,7 @@ bindkey '^N'   down-line-or-beginning-search
 bindkey '^X^E' edit-command-line
 
 # fzf: ^R history, ^T files, M-c cd
-(( $+commands[fzf] )) && source <(fzf --zsh)
+[[ -t 0 ]] && (( $+commands[fzf] )) && source <(fzf --zsh)   # needs a real terminal
 
 # ── aliases ─────────────────────────────────────────────────────────────
 export CLICOLOR=1
