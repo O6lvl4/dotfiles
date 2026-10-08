@@ -34,6 +34,7 @@ entries() { local l; for l in "${(@f)$(<$DOT/$1)}"; do l=${l%%\#*}; [[ -n ${l//[
 # ── machine ─────────────────────────────────────────────────────────────
 arch_rust() { [[ $(uname -m) == arm64 ]] && print aarch64 || print x86_64 }
 arch_go()   { [[ $(uname -m) == arm64 ]] && print arm64   || print amd64 }
+arch_mac()  { [[ $(uname -m) == arm64 ]] && print arm64   || print x86_64 }
 
 # Xcode.app selected but its license not accepted (and no sudo to accept it):
 # every /usr/bin dev tool dies with exit 69. The Command Line Tools copy works.
@@ -41,6 +42,28 @@ needs_clt() {
   [[ -d /Library/Developer/CommandLineTools ]] || return 1
   env -u DEVELOPER_DIR /usr/bin/git --version >/dev/null 2>&1 && return 1
   return 0
+}
+
+# The Command Line Tools linker can be older than the newest SDK it ships
+# ("tapi error: unknown architecture arm64e.x1-macos"), which breaks every
+# C / Rust / cgo link. Prints the newest SDK that links, if the default doesn't.
+pick_sdk() {
+  local clt=/Library/Developer/CommandLineTools t sdk
+  [[ -d $clt/SDKs ]] || return 1
+  t=$(mktemp -d)
+  {
+    print 'int main(void) { return 0; }' > $t/a.c
+    local -x DEVELOPER_DIR=${DEVELOPER_DIR:-}
+    needs_clt && DEVELOPER_DIR=$clt
+    env -u SDKROOT /usr/bin/cc $t/a.c -o $t/a >/dev/null 2>&1 && return 1
+    local -a sdks=( $clt/SDKs/MacOSX[0-9]*.sdk(N/) )         # real dirs, not alias links
+    for sdk in ${(On)sdks}; do
+      SDKROOT=$sdk /usr/bin/cc $t/a.c -o $t/a >/dev/null 2>&1 && { print -r -- $sdk; return 0 }
+    done
+    return 1
+  } always {
+    rm -rf $t
+  }
 }
 
 # ── link ────────────────────────────────────────────────────────────────
@@ -68,6 +91,11 @@ cmd_link() {
     print -r -- "export DEVELOPER_DIR=/Library/Developer/CommandLineTools  # Xcode license not accepted" >> $zlocal
     ok "local.zsh  ${c_dim}DEVELOPER_DIR → CommandLineTools${c_off}"
   fi
+  local sdk
+  if ! grep -q SDKROOT $zlocal && sdk=$(pick_sdk); then
+    print -r -- "export SDKROOT=$sdk  # default SDK is newer than this linker understands" >> $zlocal
+    ok "local.zsh  ${c_dim}SDKROOT → ${sdk:t}${c_off}"
+  fi
 
   # Superseded by ~/.config/zsh and ~/.config/git. Moved aside, never deleted.
   local old
@@ -78,7 +106,7 @@ cmd_link() {
   done
 
   mkdir -p $BIN
-  [[ $BIN/dot:A == $DOT/bin/dot ]] || { ln -sf $DOT/bin/dot $BIN/dot; ok "~/.local/bin/dot" }
+  [[ ${${:-$BIN/dot}:A} == $DOT/bin/dot ]] || { ln -sf $DOT/bin/dot $BIN/dot; ok "~/.local/bin/dot" }
 }
 
 # ── tools: binaries straight from GitHub releases ───────────────────────
@@ -95,6 +123,7 @@ install_tool() {
   local name=$1 repo=$2 pattern=$3 aliases=${4:-} json tag asset url sums tmp bin
   pattern=${pattern//\{rust\}/$(arch_rust)}
   pattern=${pattern//\{go\}/$(arch_go)}
+  pattern=${pattern//\{mac\}/$(arch_mac)}
 
   json=$(gh_api repos/$repo/releases/latest) || { die "$name  could not reach $repo"; return 1 }
   tag=$(jq -r .tag_name <<<$json)
@@ -114,16 +143,22 @@ install_tool() {
   {
     curl -fsSL -o $tmp/$asset $url
 
-    # Verify against whatever checksum file the release publishes.
+    # sha256 from GitHub's own asset digest, plus the publisher's checksum
+    # file when there is one. Every one we have must match.
+    local got want digest checked=0
+    got=$(shasum -a 256 $tmp/$asset | awk '{ print $1 }')
+    digest=$(jq -r --arg a $asset '.assets[] | select(.name == $a) | .digest // empty' <<<$json)
+    if [[ $digest == sha256:* ]]; then
+      [[ ${digest#sha256:} == $got ]] || { die "$name  sha256 mismatch (GitHub digest) for $asset"; return 1 }
+      checked=1
+    fi
     sums=$(jq -r --arg a $asset '[.assets[] | select(.name == ($a + ".sha256") or (.name | test("(?i)checksums|sha256sums"))) | .browser_download_url][0] // empty' <<<$json)
     if [[ -n $sums ]]; then
-      local want got
       want=$(curl -fsSL $sums | awk -v a=$asset 'NF == 1 || $2 == a || $2 == "*"a { print $1; exit }')
-      got=$(shasum -a 256 $tmp/$asset | awk '{ print $1 }')
-      [[ $want == $got ]] || { die "$name  sha256 mismatch for $asset"; return 1 }
-    else
-      warn "$name  ${c_dim}no checksum published, unverified${c_off}"
+      [[ $want == $got ]] || { die "$name  sha256 mismatch (published checksums) for $asset"; return 1 }
+      checked=1
     fi
+    (( checked )) || warn "$name  ${c_dim}no digest or checksum available, unverified${c_off}"
 
     mkdir -p $tmp/x $BIN
     case $asset in
@@ -133,7 +168,18 @@ install_tool() {
     esac
     bin=( $tmp/x/**/$name(.N) )
     [[ -n $bin ]] || { die "$name  no '$name' binary inside $asset"; return 1 }
-    install -m 755 $bin[1] $BIN/$name
+
+    # A bin/ with share/ or lib/ beside it (nvim) needs its whole tree:
+    # keep it under ~/.local/opt/<name> and link the binary.
+    local root=${bin[1]:h:h}
+    if [[ ${bin[1]:h:t} == bin && ( -d $root/share || -d $root/lib ) ]]; then
+      local opt=$HOME/.local/opt/$name
+      rm -rf $opt.new && mkdir -p ${opt:h} && cp -R $root $opt.new
+      rm -rf $opt && mv $opt.new $opt
+      rm -f $BIN/$name && ln -s $opt/bin/$name $BIN/$name
+    else
+      install -m 755 $bin[1] $BIN/$name
+    fi
 
     mkdir -p $STATE/tools
     print -r -- $tag > $STATE/tools/$name

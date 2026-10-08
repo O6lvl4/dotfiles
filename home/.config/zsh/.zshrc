@@ -12,18 +12,27 @@ HISTSIZE=100000 SAVEHIST=100000
 # Completions for release-installed tools, regenerated when the binary changes.
 _zcomp=$XDG_CACHE_HOME/zsh/completions
 [[ -d $_zcomp ]] || mkdir -p $_zcomp
+typeset -g _zregen=0
 () {
   local tool gen
-  for tool gen in gh 'gh completion -s zsh' qusp 'qusp completions zsh'; do
+  for tool gen in \
+      gh   'gh completion -s zsh'    qusp 'qusp completions zsh' \
+      rg   'rg --generate complete-zsh' fd 'fd --gen-completions zsh' \
+      bat  'bat --completion zsh'; do
     (( $+commands[$tool] )) || continue
-    [[ -s $_zcomp/_$tool && $_zcomp/_$tool -nt $commands[$tool] ]] || ${=gen} >| $_zcomp/_$tool 2>/dev/null
+    [[ -s $_zcomp/_$tool && $_zcomp/_$tool -nt $commands[$tool] ]] && continue
+    ${=gen} >| $_zcomp/_$tool 2>/dev/null
+    _zregen=1
   done
 }
 fpath=($_zcomp $fpath)
 unset _zcomp
 
+# -C skips the slow security scan; rebuild the dump when a completion changed.
 autoload -Uz compinit
+(( _zregen )) && rm -f $XDG_CACHE_HOME/zsh/zcompdump
 compinit -d $XDG_CACHE_HOME/zsh/zcompdump -C
+unset _zregen
 zstyle ':completion:*' menu select
 zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}' 'r:|[._-]=* r:|=*'
 zstyle ':completion:*' list-colors ${(s.:.)LS_COLORS}
@@ -44,6 +53,9 @@ bindkey '^P'   up-line-or-beginning-search
 bindkey '^N'   down-line-or-beginning-search
 bindkey '^X^E' edit-command-line
 
+# fzf: ^R history, ^T files, M-c cd
+(( $+commands[fzf] )) && source <(fzf --zsh)
+
 # ── aliases ─────────────────────────────────────────────────────────────
 export CLICOLOR=1
 alias ls='ls -G' ll='ls -lAhG' la='ls -AG'
@@ -52,12 +64,17 @@ alias ..='cd ..' ...='cd ../..'
 alias reload='exec zsh'
 
 # ── workspace: ~/workspace/github.com/<owner>/<repo> ────────────────────
-# ws                 → workspace root
+# ws                 → pick a repo with fzf (workspace root without fzf)
 # ws dotfiles        → the first repo named dotfiles
 # ws O6lvl4/qusp     → that repo, cloned on the spot if it isn't here yet
 ws() {
   local root=$WORKSPACE/github.com
-  [[ -z $1 ]] && { cd $root; return }
+  if [[ -z $1 ]]; then
+    (( $+commands[fzf] )) || { cd $root; return }
+    local pick
+    pick=$(print -rl -- $root/*/*(/N:s:$root/::) | fzf --height=40% --reverse --prompt='ws ❯ ') || return
+    cd $root/$pick; return
+  fi
   if [[ $1 == */* ]]; then
     [[ -d $root/$1 ]] || git clone https://github.com/$1.git $root/$1 || return
     cd $root/$1; return

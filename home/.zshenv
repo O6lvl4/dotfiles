@@ -10,7 +10,7 @@ typeset -U path
 path=($HOME/.local/bin $path)
 
 export LANG=${LANG:-en_US.UTF-8}
-export EDITOR=${EDITOR:-vi}
+export EDITOR=${EDITOR:-nvim} VISUAL=${VISUAL:-nvim}
 export LESS=-FRX
 
 # This machine only (DEVELOPER_DIR, tokens, work stuff). Never committed.

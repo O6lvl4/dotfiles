@@ -1,7 +1,15 @@
 # Binaries pulled straight from GitHub releases into ~/.local/bin.
-# No Homebrew, no sudo. Checksums verified when the release publishes them.
+# No Homebrew, no sudo. sha256 checked against GitHub's asset digest and the
+# publisher's checksum file when there is one.
 #
-# name      repo              asset (regex; {rust} = aarch64|x86_64, {go} = arm64|amd64)   aliases
-gh          cli/cli           gh_[0-9.]+_macOS_{go}\.zip
-qusp        O6lvl4/qusp       qusp-v[0-9.]+-{rust}-apple-darwin\.tar\.gz        quspx
-codopsy     O6lvl4/codopsy    codopsy-{rust}-apple-darwin\.tar\.gz
+# {rust} = aarch64|x86_64   {go} = arm64|amd64   {mac} = arm64|x86_64
+#
+# name      repo                 asset (regex)                                       aliases
+gh          cli/cli              gh_[0-9.]+_macOS_{go}\.zip
+qusp        O6lvl4/qusp          qusp-v[0-9.]+-{rust}-apple-darwin\.tar\.gz          quspx
+codopsy     O6lvl4/codopsy       codopsy-{rust}-apple-darwin\.tar\.gz
+rg          BurntSushi/ripgrep   ripgrep-[0-9.]+-{rust}-apple-darwin\.tar\.gz
+fd          sharkdp/fd           fd-v[0-9.]+-{rust}-apple-darwin\.tar\.gz
+bat         sharkdp/bat          bat-v[0-9.]+-{rust}-apple-darwin\.tar\.gz
+fzf         junegunn/fzf         fzf-[0-9.]+-darwin_{go}\.tar\.gz
+nvim        neovim/neovim        nvim-macos-{mac}\.tar\.gz
