@@ -1,0 +1,67 @@
+name: ci
+
+# Every push, plus weekly: upstream tools rename their release assets and
+# toolchains move on without anyone touching this repo.
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '17 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get install -y -q zsh
+      - name: syntax
+        run: |
+          sh -n install
+          for f in bin/dot home/.zshenv home/.config/zsh/.zshrc home/.config/zsh/.zprofile home/.config/zsh/prompt.zsh; do
+            zsh -n "$f"
+          done
+      - name: every tool resolves on every platform
+        run: bin/dot tools --check
+
+  # The real thing: install into an empty HOME, then use the result.
+  install:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - if: runner.os == 'Linux'
+        run: sudo apt-get install -y -q zsh
+      - name: install into an empty HOME
+        run: |
+          export HOME=$RUNNER_TEMP/home && mkdir -p "$HOME"
+          DOT_DIR=$GITHUB_WORKSPACE sh install
+      - name: a new login shell has everything
+        shell: zsh {0}
+        run: |
+          export HOME=$RUNNER_TEMP/home
+          exec zsh -lic '
+            set -e
+            for c in dot jq gh qusp codopsy rg fd bat fzf nvim rustc cargo go node python ruby almide; do
+              print -r -- "$c  ${commands[$c]:?$c missing}"
+            done
+            cd $(mktemp -d)
+            cargo new -q hello && (cd hello && cargo run -q)
+            print "package main\nimport \"fmt\"\nfunc main() { fmt.Println(\"go ok\") }" > m.go && go run m.go
+            node -e "console.log(\"node\", process.version)"
+            python -c "import sys; print(\"python\", sys.version.split()[0])"
+            ruby -e "puts \"ruby #{RUBY_VERSION}\""
+            git -C $GITHUB_WORKSPACE --no-pager tree -3
+            dot doctor
+          '
