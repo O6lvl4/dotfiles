@@ -156,14 +156,16 @@ cmd_tools() {
 # `latest` → newest stable release, `24` → newest 24.x, anything else as-is.
 resolve_version() {
   local lang=$1 want=$2 v
+  local -a hits
   [[ $want == latest || $want == [0-9]## || $want == [0-9]##.[0-9]## ]] || { print -r -- $want; return }
   for v in ${(f)"$($BIN/qusp list --remote $lang 2>/dev/null)"}; do
-    v=${v//$'\e'\[[0-9;]#m/}; v=${v//[[:space:]]/}
+    v=${v//$'\e'\[[0-9;]#m/}; v=${${v## #}%% *}                 # drop color and "(LTS)"
     [[ ${v#go} == [0-9]##(.[0-9]##)# ]] || continue            # skip rc / beta / channels
-    [[ $want == latest || ${v#go} == $want || ${v#go} == $want.* ]] || continue
-    print -r -- $v; return
+    [[ $want == latest || ${v#go} == $want || ${v#go} == $want.* ]] && hits+=$v
   done
-  return 1
+  (( $#hits )) || return 1
+  hits=( ${(On)hits} )                                          # list order varies by backend
+  print -r -- $hits[1]
 }
 
 cmd_langs() {
@@ -175,12 +177,8 @@ cmd_langs() {
     lang=${${=line}[1]} want=${${=line}[2]}
     version=$(resolve_version $lang $want) || { warn "$lang $want  ${c_dim}no matching release${c_off}"; continue }
     if [[ $pinned == *"$lang"*"$version"* ]]; then skip "$lang $version"; continue; fi
-    # install → pin → install again: `pin set` only links toolchains under
-    # qusp's own data dir, so go (stored by gv) needs the second install to
-    # land in the farm. Already-installed makes the second one cheap.
     if $BIN/qusp install $lang $version >/dev/null 2>&1 &&
-       $BIN/qusp pin set $lang $version >/dev/null 2>&1 &&
-       $BIN/qusp install $lang $version >/dev/null 2>&1; then
+       $BIN/qusp pin set $lang $version >/dev/null 2>&1; then
       ok "$lang $version"
     else
       warn "$lang $version  ${c_dim}failed — try: qusp install $lang $version${c_off}"
