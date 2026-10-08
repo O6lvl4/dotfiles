@@ -2,14 +2,17 @@
 # No Homebrew, no sudo. sha256 checked against GitHub's asset digest and the
 # publisher's checksum file when there is one.
 #
-# {rust} = aarch64|x86_64   {go} = arm64|amd64   {mac} = arm64|x86_64
+# {os}   = macOS|darwin|apple-darwin  ·  linux|unknown-linux-musl|-gnu
+# {rust} = aarch64|x86_64   {go} = arm64|amd64   {arch} = arm64|x86_64
+# `dot tools --check` shows which platforms each line resolves on.
 #
 # name      repo                 asset (regex)                                       aliases
-gh          cli/cli              gh_[0-9.]+_macOS_{go}\.zip
-qusp        O6lvl4/qusp          qusp-v[0-9.]+-{rust}-apple-darwin\.tar\.gz          quspx
-codopsy     O6lvl4/codopsy       codopsy-{rust}-apple-darwin\.tar\.gz
-rg          BurntSushi/ripgrep   ripgrep-[0-9.]+-{rust}-apple-darwin\.tar\.gz
-fd          sharkdp/fd           fd-v[0-9.]+-{rust}-apple-darwin\.tar\.gz
-bat         sharkdp/bat          bat-v[0-9.]+-{rust}-apple-darwin\.tar\.gz
-fzf         junegunn/fzf         fzf-[0-9.]+-darwin_{go}\.tar\.gz
-nvim        neovim/neovim        nvim-macos-{mac}\.tar\.gz
+jq          jqlang/jq            jq-{os}-{go}
+gh          cli/cli              gh_[0-9.]+_{os}_{go}\.(zip|tar\.gz)
+qusp        O6lvl4/qusp          qusp-v[0-9.]+-{rust}-{os}\.tar\.gz                 quspx
+codopsy     O6lvl4/codopsy       codopsy-{rust}-{os}\.tar\.gz
+rg          BurntSushi/ripgrep   ripgrep-[0-9.]+-{rust}-{os}\.tar\.gz
+fd          sharkdp/fd           fd-v[0-9.]+-{rust}-{os}\.tar\.gz
+bat         sharkdp/bat          bat-v[0-9.]+-{rust}-{os}\.tar\.gz
+fzf         junegunn/fzf         fzf-[0-9.]+-{os}_{go}\.tar\.gz
+nvim        neovim/neovim        nvim-{os}-{arch}\.tar\.gz

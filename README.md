@@ -1,6 +1,8 @@
 # dotfiles
 
-A fresh Mac to a working setup in one line. **No sudo. No Homebrew. No framework.**
+[![ci](https://github.com/O6lvl4/dotfiles/actions/workflows/ci.yml/badge.svg)](https://github.com/O6lvl4/dotfiles/actions/workflows/ci.yml)
+
+A fresh Mac (or Linux box) to a working setup in one line. **No sudo. No Homebrew. No framework.**
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/O6lvl4/dotfiles/main/install | sh
@@ -18,32 +20,35 @@ dot repos        # every repo → ~/workspace/github.com/<owner>/<repo>
 | | |
 |---|---|
 | **toolchains** | rust · go · node · python · ruby · almide — via [qusp](https://github.com/O6lvl4/qusp), bare commands in `~/.local/bin`, no shims, no shell hook |
-| **binaries** | gh · qusp · codopsy — straight from GitHub releases, sha256-verified |
-| **shell** | plain zsh, a two-line prompt in ~80 lines, `ws` to jump between repos |
-| **git** | HTTPS authenticated by gh (no SSH keys), sane defaults, `git lg` |
+| **binaries** | jq · gh · qusp · codopsy · rg · fd · bat · fzf · nvim — straight from GitHub releases, sha256-verified, musl builds on Linux |
+| **shell** | plain zsh, starts in ~40ms; a two-line prompt whose `git status` runs in the background; fzf on `^R` / `^T`; `ws` to jump between repos |
+| **git** | HTTPS authenticated by gh (no SSH keys), sane defaults, `tree` for every branch as one graph |
 
 ## `dot`
 
 ```
-dot up        link + tools + langs   (safe to re-run any time)
+dot up        pull this repo, then link + tools + langs   (safe to re-run any time)
 dot link      symlink home/ into $HOME
-dot tools     install / update the binaries in ./tools
+dot tools     install / update the binaries in ./tools   (--check: every platform)
 dot langs     install + globally pin the toolchains in ./langs
 dot repos     clone every repo of the owners in ./repos
-dot sync      dot repos, then fetch + fast-forward every repo
-dot doctor    what is and isn't in place
+dot sync      dot repos, then fetch + fast-forward every repo (never merges)
+dot doctor    what is and isn't in place, and how fast zsh starts
 dot edit      cd here
 ```
 
 Everything is driven by three plain-text lists — [`tools`](tools), [`langs`](langs),
 [`repos`](repos). Add a line, run `dot up`.
 
-## `ws`
+## `ws` and `tree`
 
 ```sh
-ws               # ~/workspace/github.com
+ws               # pick a repo with fzf
 ws qusp          # → O6lvl4/qusp   (tab-completes every local repo)
 ws almide/almide # → clones it first if it isn't here yet
+
+tree             # every branch as one colored graph (git tree)
+tree -20         # last 20 · tree -- src/ · any git log flag
 ```
 
 ## Layout
@@ -56,6 +61,7 @@ home/                       mirrored into ~ as symlinks
 bin/dot                     the only command
 install                     curl | sh bootstrap
 tools  langs  repos         what to install
+.github/workflows/ci.yml    empty-HOME install on macOS + Linux, weekly asset check
 ```
 
 ## Per-machine
@@ -64,7 +70,8 @@ Never committed, created empty by `dot link`:
 
 - `~/.config/zsh/local.zsh` — env for this machine only. `dot link` writes
   `DEVELOPER_DIR` here automatically when Xcode is installed but its license
-  was never accepted (and there's no sudo to accept it).
+  was never accepted (and there's no sudo to accept it), and `SDKROOT` when
+  the default SDK is newer than the linker understands.
 - `~/.config/git/local` — e.g. a work email under `[user]`.
 
 Anything `dot link` replaces is moved to `<name>.pre-dot`, never deleted.

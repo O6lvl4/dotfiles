@@ -4,6 +4,7 @@
 #   dot up        link + tools + langs   (safe to re-run any time)
 #   dot link      symlink home/ into $HOME
 #   dot tools     install / update the binaries listed in ./tools
+#                 (--check: resolve every asset for every platform, install nothing)
 #   dot langs     install + globally pin the toolchains in ./langs via qusp
 #   dot repos     clone every repo of the owners in ./repos into ~/workspace
 #   dot sync      dot repos, then fetch + fast-forward every repo in ~/workspace
@@ -33,9 +34,17 @@ die()  { print -r -- "  ${c_err}✗${c_off} $*" >&2; return 1 }
 entries() { local l; for l in "${(@f)$(<$DOT/$1)}"; do l=${l%%\#*}; [[ -n ${l//[[:space:]]/} ]] && print -r -- $l; done }
 
 # ── machine ─────────────────────────────────────────────────────────────
-arch_rust() { [[ $(uname -m) == arm64 ]] && print aarch64 || print x86_64 }
-arch_go()   { [[ $(uname -m) == arm64 ]] && print arm64   || print amd64 }
-arch_mac()  { [[ $(uname -m) == arm64 ]] && print arm64   || print x86_64 }
+# DOT_OS / DOT_ARCH override detection (dot tools --check walks every platform).
+os()        { print -r -- ${DOT_OS:-${(L)$(uname -s)}} }               # darwin | linux
+is_arm()    { [[ ${DOT_ARCH:-$(uname -m)} == (arm64|aarch64) ]] }
+arch_rust() { is_arm && print aarch64 || print x86_64 }
+arch_go()   { is_arm && print arm64   || print amd64 }
+arch_std()  { is_arm && print arm64   || print x86_64 }
+# Every spelling of "this OS" that release assets use.
+os_re() { [[ $(os) == darwin ]] && print -r -- '(macOS|macos|darwin|apple-darwin)' \
+                                || print -r -- '(linux|unknown-linux-musl|unknown-linux-gnu)' }
+
+sha256() { (( $+commands[sha256sum] )) && sha256sum $1 | awk '{ print $1 }' || shasum -a 256 $1 | awk '{ print $1 }' }
 
 # Xcode.app selected but its license not accepted (and no sudo to accept it):
 # every /usr/bin dev tool dies with exit 69. The Command Line Tools copy works.
@@ -115,16 +124,49 @@ gh_api() {
   if [[ -x $BIN/gh ]] && $BIN/gh auth status >/dev/null 2>&1; then
     $BIN/gh api $1
   else
-    curl -fsSL -H 'Accept: application/vnd.github+json' https://api.github.com/$1
+    local -a auth=()
+    local token=${GH_TOKEN:-${GITHUB_TOKEN:-}}
+    [[ -n $token ]] && auth=( -H "Authorization: Bearer $token" )     # 60/h → 5000/h
+    curl -fsSL $auth -H 'Accept: application/vnd.github+json' https://api.github.com/$1
   fi
+}
+
+# jq parses every release listing, so it has to exist before the first one.
+# macOS 15+ ships it; elsewhere fetch the static binary, checked against
+# jq's own sha256sum.txt. `dot tools` keeps it updated after that.
+ensure_jq() {
+  (( $+commands[jq] )) && return 0
+  local name=jq-${${$(os):s/darwin/macos}}-$(arch_go) base=https://github.com/jqlang/jq/releases/latest/download t
+  t=$(mktemp -d)
+  {
+    curl -fsSL -o $t/jq $base/$name && curl -fsSL -o $t/sums $base/sha256sum.txt || { die "jq  download failed"; return 1 }
+    [[ $(awk -v a=$name '$2 == a { print $1 }' $t/sums) == $(sha256 $t/jq) ]] || { die "jq  sha256 mismatch"; return 1 }
+    mkdir -p $BIN && install -m 755 $t/jq $BIN/jq && hash -r
+    ok "jq  ${c_dim}bootstrapped${c_off}"
+  } always {
+    rm -rf $t
+  }
+}
+
+# expand_pattern <regex with {placeholders}>
+expand_pattern() {
+  local p=$1
+  p=${p//\{rust\}/$(arch_rust)}
+  p=${p//\{go\}/$(arch_go)}
+  p=${p//\{arch\}/$(arch_std)}
+  p=${p//\{os\}/$(os_re)}
+  print -r -- $p
+}
+
+# pick_asset <release json> <regex> → asset name. Prefers musl over gnu builds
+# (static, runs on any distro).
+pick_asset() {
+  jq -r --arg p "^$2\$" '[.assets[].name | select(test($p))] | sort_by(test("gnu")) | .[0] // empty' <<<$1
 }
 
 # install_tool <name> <owner/repo> <asset regex> [alias,...]
 install_tool() {
-  local name=$1 repo=$2 pattern=$3 aliases=${4:-} json tag asset url sums tmp bin
-  pattern=${pattern//\{rust\}/$(arch_rust)}
-  pattern=${pattern//\{go\}/$(arch_go)}
-  pattern=${pattern//\{mac\}/$(arch_mac)}
+  local name=$1 repo=$2 pattern=$(expand_pattern $3) aliases=${4:-} json tag asset url sums tmp bin
 
   json=$(gh_api repos/$repo/releases/latest) || { die "$name  could not reach $repo"; return 1 }
   tag=$(jq -r .tag_name <<<$json)
@@ -136,8 +178,8 @@ install_tool() {
     skip "$name $tag"; return 0
   fi
 
-  asset=$(jq -r --arg p "^$pattern\$" '[.assets[].name | select(test($p))][0] // empty' <<<$json)
-  [[ -n $asset ]] || { die "$name  no asset matching $pattern in $repo $tag"; return 1 }
+  asset=$(pick_asset $json $pattern)
+  [[ -n $asset ]] || { die "$name  no $(os)-$(arch_std) asset matching $pattern in $repo $tag"; return 1 }
   url=$(jq -r --arg a $asset '.assets[] | select(.name == $a) | .browser_download_url' <<<$json)
 
   tmp=$(mktemp -d)
@@ -147,7 +189,7 @@ install_tool() {
     # sha256 from GitHub's own asset digest, plus the publisher's checksum
     # file when there is one. Every one we have must match.
     local got want digest checked=0
-    got=$(shasum -a 256 $tmp/$asset | awk '{ print $1 }')
+    got=$(sha256 $tmp/$asset)
     digest=$(jq -r --arg a $asset '.assets[] | select(.name == $a) | .digest // empty' <<<$json)
     if [[ $digest == sha256:* ]]; then
       [[ ${digest#sha256:} == $got ]] || { die "$name  sha256 mismatch (GitHub digest) for $asset"; return 1 }
@@ -163,7 +205,7 @@ install_tool() {
 
     mkdir -p $tmp/x $BIN
     case $asset in
-      *.zip)    ditto -x -k $tmp/$asset $tmp/x ;;
+      *.zip)    (( $+commands[ditto] )) && ditto -x -k $tmp/$asset $tmp/x || unzip -q $tmp/$asset -d $tmp/x ;;
       *.tar.gz|*.tgz) tar -xzf $tmp/$asset -C $tmp/x ;;
       *)        cp $tmp/$asset $tmp/x/$name ;;
     esac
@@ -191,10 +233,36 @@ install_tool() {
 }
 
 cmd_tools() {
+  [[ ${1:-} == --check ]] && { tools_check; return }
   step "tools  ${c_dim}→ ~/.local/bin${c_off}"
+  ensure_jq || return 1
   local line failed=0
   for line in ${(f)"$(entries tools)"}; do
     install_tool ${=line} || failed=1
+  done
+  return $failed
+}
+
+# Does every tool still publish an asset our regex finds, on every platform?
+# Catches upstream renames before a fresh machine does.
+tools_check() {
+  step "tools --check  ${c_dim}every asset × every platform${c_off}"
+  ensure_jq || return 1
+  local -a plats=( darwin:arm64 darwin:x86_64 linux:x86_64 linux:aarch64 )
+  local -a required=( darwin:arm64 linux:x86_64 )                     # what we run (and CI tests)
+  local line plat json asset failed=0 row
+  local -a f
+  for line in ${(f)"$(entries tools)"}; do
+    f=( ${=line} )
+    json=$(gh_api repos/$f[2]/releases/latest) || { die "$f[1]  could not reach $f[2]"; failed=1; continue }
+    row=''
+    for plat in $plats; do
+      asset=$(DOT_OS=${plat%:*} DOT_ARCH=${plat#*:} expand_pattern $f[3] | { read -r p; pick_asset $json $p })
+      if [[ -n $asset ]]; then row+=" ${c_ok}$plat${c_off}"
+      elif (( $required[(Ie)$plat] )); then row+=" ${c_err}$plat✗${c_off}"; failed=1
+      else row+=" ${c_warn}$plat·${c_off}"; fi
+    done
+    print -r -- "  ${(r:9:)f[1]}$row"
   done
   return $failed
 }
@@ -337,12 +405,37 @@ cmd_doctor() {
     [[ -n $who ]] && ok "gh logged in as $who" || warn "gh not logged in"
   fi
   [[ -x $BIN/qusp ]] && $BIN/qusp pin list 2>/dev/null | sed 's/^/    /'
+
+  # Startup budget: an interactive shell should feel instant.
+  zmodload zsh/datetime
+  local -F t0=$EPOCHREALTIME
+  zsh -i -c exit >/dev/null 2>&1 </dev/null
+  local -i ms=$(( (EPOCHREALTIME - t0) * 1000 ))
+  (( ms < 150 )) && ok "zsh starts in ${ms}ms" || warn "zsh starts in ${ms}ms  ${c_dim}(zsh -i -x -c exit to see why)${c_off}"
   return 0
 }
 
-cmd_up() { cmd_link; cmd_tools; cmd_langs }
+# Pull this repo first, so `dot up` on any machine means "the latest setup".
+# Only fast-forwards a clean checkout of a branch; anything else is left alone.
+self_update() {
+  local g=( git -C $DOT ) before
+  $g symbolic-ref -q HEAD >/dev/null && $g rev-parse -q --verify '@{u}' >/dev/null || return 0
+  before=$($g rev-parse HEAD)
+  if ! $g pull --ff-only --quiet >/dev/null 2>&1; then
+    warn "dotfiles  ${c_dim}could not fast-forward, using the local copy${c_off}"; return 0
+  fi
+  [[ $($g rev-parse HEAD) == $before ]] && return 0
+  ok "dotfiles  ${c_dim}${before[1,7]} → $($g rev-parse --short HEAD)${c_off}"
+  DOT_UPDATED=1 exec $DOT/bin/dot up                                 # rerun the new version
+}
 
-cmd_help() { sed -n '2,11s/^# \{0,1\}//p' $DOT/bin/dot }
+cmd_up() {
+  step "dotfiles  ${c_dim}$DOT${c_off}"
+  [[ -n ${DOT_UPDATED:-} ]] && skip "updated" || self_update
+  cmd_link; cmd_tools; cmd_langs
+}
+
+cmd_help() { sed -n '2,12s/^# \{0,1\}//p' $DOT/bin/dot }
 
 case ${1:-help} in
   up|link|tools|langs|repos|sync|doctor|help|_clone|_sync) cmd=${1:-help}; (( $# )) && shift; cmd_$cmd "$@" ;;

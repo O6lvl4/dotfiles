@@ -1,5 +1,5 @@
 #!/bin/sh
-# One line on a fresh Mac. No sudo, no Homebrew.
+# One line on a fresh Mac (or Linux box). No sudo, no Homebrew.
 #
 #   curl -fsSL https://raw.githubusercontent.com/O6lvl4/dotfiles/main/install | sh
 set -eu
@@ -12,9 +12,12 @@ if ! /usr/bin/git --version >/dev/null 2>&1 && [ -d /Library/Developer/CommandLi
   export DEVELOPER_DIR=/Library/Developer/CommandLineTools
 fi
 if ! git --version >/dev/null 2>&1; then
-  echo "git is not usable. Run: xcode-select --install   (then re-run this)" >&2
+  echo "git is not usable. macOS: xcode-select --install · Linux: apt install git   (then re-run this)" >&2
   exit 1
 fi
+for need in zsh curl tar; do
+  command -v $need >/dev/null 2>&1 || { echo "$need is required (e.g. apt install $need), then re-run this" >&2; exit 1; }
+done
 
 [ -d "$dest/.git" ] || git clone --quiet https://github.com/O6lvl4/dotfiles.git "$dest"
 "$dest/bin/dot" up

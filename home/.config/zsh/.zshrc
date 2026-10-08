@@ -58,7 +58,9 @@ bindkey '^X^E' edit-command-line
 
 # ── aliases ─────────────────────────────────────────────────────────────
 export CLICOLOR=1
-alias ls='ls -G' ll='ls -lAhG' la='ls -AG'
+[[ $OSTYPE == darwin* ]] && _c=-G || _c=--color=auto     # BSD ls vs GNU ls
+alias ls="ls $_c" ll="ls -lAh $_c" la="ls -A $_c"
+unset _c
 alias g=git
 alias tree='git tree'   # git log as a branch graph; `tree -20`, `tree -- path`
 alias ..='cd ..' ...='cd ../..'
