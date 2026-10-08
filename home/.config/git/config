@@ -56,6 +56,8 @@
 	sw = switch
 	co = checkout
 	lg = log --graph --format='%C(auto)%h%d %s %C(8)%cr · %an'
+	# every branch as one graph: hash · age · author · refs · subject
+	tree = log --graph --all --color --format='%C(yellow)%h%C(reset) %C(green)%<(13,trunc)%ar%C(reset) %C(blue)%<(12,trunc)%an%C(reset)%C(auto)%d%C(reset) %s'
 	last = log -1 --stat
 	amend = commit --amend --no-edit
 	undo = reset --soft HEAD~1

@@ -60,6 +60,7 @@ bindkey '^X^E' edit-command-line
 export CLICOLOR=1
 alias ls='ls -G' ll='ls -lAhG' la='ls -AG'
 alias g=git
+alias tree='git tree'   # git log as a branch graph; `tree -20`, `tree -- path`
 alias ..='cd ..' ...='cd ../..'
 alias reload='exec zsh'
 
