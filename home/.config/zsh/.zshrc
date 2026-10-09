@@ -67,7 +67,7 @@ alias reload='exec zsh'
 
 # ── workspace: ~/workspace/<host>/<owner>/<repo> ────────────────────────
 # ws                 → pick a repo with fzf (workspace root without fzf)
-# ws dotfiles        → the first repo named dotfiles
+# ws dotfiles        → the first repo named dotfiles (else starting with, else containing it)
 # ws O6lvl4/qusp     → that repo, cloned from github.com if it isn't here yet
 # ws <host>/<o>/<r>  → cloned into ~/workspace/<host>/ from https://<host>/<o>/<r>
 # Any dir in ~/workspace with a dot in its name is a host. An alias host is
@@ -88,7 +88,10 @@ ws() {
            cd $root/$1; return ;;
     */*)   hit=( $root/*.*/$1(/N) )
            (( $#hit )) || { _ws_clone github.com $1 || return; hit=( $root/github.com/$1 ) } ;;
-    *)     hit=( $root/*.*/*/$1(/N) ) ;;
+    *)     local q=${(b)1}                                     # exact, then prefix, then anywhere
+           hit=( $root/*.*/*/$~q(/N) )
+           (( $#hit )) || hit=( $root/*.*/*/(#i)$~q*(/N) )
+           (( $#hit )) || hit=( $root/*.*/*/(#i)*$~q*(/N) ) ;;
   esac
   (( $#hit )) || { print -u2 "ws: no repo named $1"; return 1 }
   (( $#hit > 1 )) && print -u2 "ws: also ${(j:, :)${hit[2,-1]#$root/}}"
@@ -104,7 +107,9 @@ _ws() {
   local root=$WORKSPACE
   local -a repos=( $root/*.*/*/*(/N) )
   repos=( ${repos#$root/*/} )
-  compadd -- $repos ${repos:t}
+  # Any case, prefix first; only when nothing starts with it, anywhere in the name.
+  compadd -M 'm:{a-zA-Z}={A-Za-z}' -- $repos ${repos:t} ||
+    compadd -M 'm:{a-zA-Z}={A-Za-z} l:|=* r:|=*' -- $repos ${repos:t}
 }
 compdef _ws ws
 
