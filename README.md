@@ -46,6 +46,7 @@ Everything is driven by three plain-text lists — [`tools`](tools), [`langs`](l
 ws               # pick a repo with fzf
 ws qusp          # → O6lvl4/qusp   (tab-completes every local repo)
 ws almide/almide # → clones it first if it isn't here yet
+ws host/owner/repo  # → ~/workspace/host/owner/repo (alias hosts via git url.insteadOf)
 
 g tree           # every branch as one colored graph
 g tree -20       # last 20 · g tree -- src/ · any git log flag

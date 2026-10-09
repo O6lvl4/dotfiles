@@ -65,37 +65,54 @@ alias g=git
 alias ..='cd ..' ...='cd ../..'
 alias reload='exec zsh'
 
-# ── workspace: ~/workspace/github.com/<owner>/<repo> ────────────────────
+# ── workspace: ~/workspace/<host>/<owner>/<repo> ────────────────────────
 # ws                 → pick a repo with fzf (workspace root without fzf)
 # ws dotfiles        → the first repo named dotfiles
-# ws O6lvl4/qusp     → that repo, cloned on the spot if it isn't here yet
+# ws O6lvl4/qusp     → that repo, cloned from github.com if it isn't here yet
+# ws <host>/<o>/<r>  → cloned into ~/workspace/<host>/ from https://<host>/<o>/<r>
+# Any dir in ~/workspace with a dot in its name is a host. An alias host is
+# pointed at a real one with git's url.insteadOf, and its .envrc (direnv)
+# applies to the clone too, so a second account needs nothing in here.
 ws() {
-  local root=$WORKSPACE/github.com
+  local root=$WORKSPACE
   if [[ -z $1 ]]; then
     (( $+commands[fzf] )) || { cd $root; return }
+    local -a repos=( $root/*.*/*/*(/N) )
     local pick
-    pick=$(print -rl -- $root/*/*(/N:s:$root/::) | fzf --height=40% --reverse --prompt='ws ❯ ') || return
+    pick=$(print -rl -- ${repos#$root/} | fzf --height=40% --reverse --prompt='ws ❯ ') || return
     cd $root/$pick; return
   fi
-  if [[ $1 == */* ]]; then
-    [[ -d $root/$1 ]] || git clone https://github.com/$1.git $root/$1 || return
-    cd $root/$1; return
-  fi
-  local hit=( $root/*/$1(/N) )
+  local -a hit
+  case $1 in
+    */*/*) [[ -d $root/$1 ]] || _ws_clone ${1%%/*} ${1#*/} || return
+           cd $root/$1; return ;;
+    */*)   hit=( $root/*.*/$1(/N) )
+           (( $#hit )) || { _ws_clone github.com $1 || return; hit=( $root/github.com/$1 ) } ;;
+    *)     hit=( $root/*.*/*/$1(/N) ) ;;
+  esac
   (( $#hit )) || { print -u2 "ws: no repo named $1"; return 1 }
   (( $#hit > 1 )) && print -u2 "ws: also ${(j:, :)${hit[2,-1]#$root/}}"
   cd $hit[1]
 }
+_ws_clone() {   # <host> <owner>/<repo>
+  local dir=$WORKSPACE/$1
+  local -a run=()
+  [[ -f $dir/.envrc ]] && (( $+commands[direnv] )) && run=(direnv exec $dir)
+  $run git clone https://$1/$2.git $dir/$2
+}
 _ws() {
-  local root=$WORKSPACE/github.com
-  local -a repos=( $root/*/*(/N) )
-  repos=( ${repos#$root/} )
+  local root=$WORKSPACE
+  local -a repos=( $root/*.*/*/*(/N) )
+  repos=( ${repos#$root/*/} )
   compadd -- $repos ${repos:t}
 }
 compdef _ws ws
 
 # `dot edit` jumps into the dotfiles repo; everything else goes to bin/dot.
 dot() { [[ $1 == edit ]] && cd ${$(command dot edit)} || command dot "$@" }
+
+# ── direnv: per-directory env (e.g. which gh account a tree pushes as) ──
+(( $+commands[direnv] )) && eval "$(direnv hook zsh)"
 
 # ── prompt ──────────────────────────────────────────────────────────────
 source $ZDOTDIR/prompt.zsh

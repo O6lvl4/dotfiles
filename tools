@@ -16,3 +16,4 @@ fd          sharkdp/fd           fd-v[0-9.]+-{rust}-{os}\.tar\.gz
 bat         sharkdp/bat          bat-v[0-9.]+-{rust}-{os}\.tar\.gz
 fzf         junegunn/fzf         fzf-[0-9.]+-{os}_{go}\.tar\.gz
 nvim        neovim/neovim        nvim-{os}-{arch}\.tar\.gz
+direnv      direnv/direnv        direnv\.{os}-{go}
