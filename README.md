@@ -22,7 +22,7 @@ dot repos        # every repo → ~/workspace/github.com/<owner>/<repo>
 | **toolchains** | rust · go · node · python · ruby · almide — via [qusp](https://github.com/O6lvl4/qusp), bare commands in `~/.local/bin`, no shims, no shell hook |
 | **binaries** | jq · gh · qusp · codopsy · rg · fd · bat · fzf · nvim — straight from GitHub releases, sha256-verified, musl builds on Linux |
 | **shell** | plain zsh, starts in ~40ms; a two-line prompt whose `git status` runs in the background; fzf on `^R` / `^T`; `ws` to jump between repos |
-| **git** | HTTPS authenticated by gh (no SSH keys), sane defaults, `tree` for every branch as one graph |
+| **git** | HTTPS authenticated by gh (no SSH keys), sane defaults, `git tree` for every branch as one graph |
 
 ## `dot`
 
@@ -40,15 +40,15 @@ dot edit      cd here
 Everything is driven by three plain-text lists — [`tools`](tools), [`langs`](langs),
 [`repos`](repos). Add a line, run `dot up`.
 
-## `ws` and `tree`
+## `ws` and `git tree`
 
 ```sh
 ws               # pick a repo with fzf
 ws qusp          # → O6lvl4/qusp   (tab-completes every local repo)
 ws almide/almide # → clones it first if it isn't here yet
 
-tree             # every branch as one colored graph (git tree)
-tree -20         # last 20 · tree -- src/ · any git log flag
+g tree           # every branch as one colored graph
+g tree -20       # last 20 · g tree -- src/ · any git log flag
 ```
 
 ## Layout

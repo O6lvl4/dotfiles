@@ -62,7 +62,6 @@ export CLICOLOR=1
 alias ls="ls $_c" ll="ls -lAh $_c" la="ls -A $_c"
 unset _c
 alias g=git
-alias tree='git tree'   # git log as a branch graph; `tree -20`, `tree -- path`
 alias ..='cd ..' ...='cd ../..'
 alias reload='exec zsh'
 
