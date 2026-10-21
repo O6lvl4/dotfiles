@@ -4,11 +4,12 @@
 #   ❯
 #
 # Inside ~/workspace/github.com the path starts at the owner; elsewhere it's ~/….
-# `git status` runs in the background: the prompt appears at once (with the
-# last known status for this directory) and redraws when git answers, so a
-# huge repo never makes you wait to type.
+# `git status` runs in the background and is waited for briefly (60 ms): in
+# most repos the prompt appears once, complete. In a huge one it appears at
+# once (with the last known status for this directory) and redraws when git
+# answers, so it never makes you wait to type.
 
-zmodload zsh/datetime
+zmodload zsh/datetime zsh/zselect
 autoload -Uz add-zsh-hook
 setopt prompt_subst
 
@@ -79,7 +80,17 @@ _p_git_start() {
   [[ $PWD == $_p_git_dir ]] || { _p_git_seg=''; _p_git_dir=$PWD }   # never show another repo's status
   if [[ -o zle ]]; then
     exec {_p_fd}< <(_p_git; print)
-    zle -F $_p_fd _p_git_done
+    # Most repos answer within a few ms: wait that long, so the prompt is
+    # drawn once. A slow one is drawn now and again when git answers.
+    # (zselect, not read -t: read flushes the newline out alone first.)
+    local seg
+    if zselect -t 6 -r $_p_fd 2>/dev/null; then
+      IFS= read -r -u $_p_fd seg
+      exec {_p_fd}<&-; _p_fd=''
+      _p_git_seg=$seg
+    else
+      zle -F $_p_fd _p_git_done
+    fi
   else
     _p_git_seg=$(_p_git)                                           # no line editor: just wait
   fi
