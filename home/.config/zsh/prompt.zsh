@@ -47,12 +47,12 @@ _p_path() {
   if [[ $PWD == $root?* ]]; then
     local rel=${${PWD#$root}//\%/%%}
     if [[ $rel == */* ]]; then
-      print -rn -- "%F{8}${rel%%/*}/%f%B%F{255}${rel#*/}%f%b"
+      print -rn -- "%F{8}${rel%%/*}/%f%B${rel#*/}%b"
     else
-      print -rn -- "%B%F{255}$rel%f%b"
+      print -rn -- "%B$rel%b"
     fi
   else
-    print -rn -- "%B%F{255}%~%f%b"
+    print -rn -- "%B%~%b"
   fi
 }
 
